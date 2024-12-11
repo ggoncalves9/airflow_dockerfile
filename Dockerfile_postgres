@@ -1,0 +1,51 @@
+# Usando a imagem base do Debian slim
+FROM debian:bullseye-slim
+
+# Configurando o usuário e grupo 'postgres'
+RUN set -eux; \
+    groupadd -r postgres --gid=999; \
+    useradd -r -g postgres --uid=999 --home-dir=/var/lib/postgresql --shell=/bin/bash postgres; \
+    install --verbose --directory --owner postgres --group postgres --mode 1777 /var/lib/postgresql
+
+# Instalando dependências necessárias
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        gnupg \
+        less \
+        locales \
+        libnss-wrapper \
+        xz-utils \
+        zstd; \
+    rm -rf /var/lib/apt/lists/*
+
+# Configurando a localidade para en_US.UTF-8
+RUN set -eux; \
+    echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen; \
+    locale-gen; \
+    locale -a | grep 'en_US.utf8'
+
+# Definindo variáveis de ambiente
+ENV LANG en_US.utf8
+ENV PG_MAJOR 13
+ENV PATH $PATH:/usr/lib/postgresql/$PG_MAJOR/bin
+
+# Instalando o PostgreSQL
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        postgresql-$PG_MAJOR; \
+    rm -rf /var/lib/apt/lists/*
+
+# Criando diretório para scripts de inicialização
+RUN mkdir /docker-entrypoint-initdb.d
+
+# Definindo o ponto de entrada
+COPY docker-entrypoint.sh /usr/local/bin/
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# Expondo a porta padrão do PostgreSQL
+EXPOSE 5432
+
+# Definindo o comando padrão
+CMD ["postgres"]
